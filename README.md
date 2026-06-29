@@ -84,7 +84,7 @@
 | 电解电容 | 1000µF/16V | 2 | 并联于灯带VCC/GND |
 
 **接线拓扑**：
-OrangePi AIpro STM32F103C8T6
+OrangePi AIpro STM32F103C8T6   
 UART_TX (Pin8) -----> RX (PA10)
 UART_RX (Pin10) <----- TX (PA9)
 GND -----> GND
