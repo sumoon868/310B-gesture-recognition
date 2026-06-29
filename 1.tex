@@ -1,0 +1,86 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{float}
+\geometry{left=2cm,right=2cm,top=2cm,bottom=2cm}
+
+\title{\textbf{基于昇腾310B手势识别的智能氛围灯控制系统}\\ 项目计划书}
+\author{成员A：阳皓 \\ 成员B：江宇晨\\ 学号：3124009658\\3124009644}
+\date{2026年6月30日}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+\newpage
+
+\section{项目概述}
+本项目基于OrangePi AIpro（昇腾310B）运行YOLOv10手势识别，识别结果通过串口发送至STM32，控制WS2812B灯带实现颜色/特效切换。项目由两人合作完成。
+
+\section{时间节点与任务}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ccc@{}}
+\toprule
+\textbf{截止时间} & \textbf{阶段任务} & \textbf{交付物} \\
+\midrule
+06-30 09:00 & 环境搭建、物料准备 & 项目计划书 \\
+07-02 09:00 & 模型转换（ONNX$\to$OM）、NPU推理 & 设计文档 \\
+07-06 15:00 & STM32灯带驱动、串口通信调通 & 中期检查报告 \\
+07-09 09:00 & 全流程闭环联调 & 第一次验收演示 \\
+07-10 09:00 & 最终优化与录像 & 第二次验收 \\
+验收后一周内 & 个人总结 & 个人报告（LaTeX） \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{手势-灯光映射}
+\begin{itemize}
+    \item 点赞 $\to$ CMD:ACC $\to$ 暖色高亮
+    \item 握拳 $\to$ CMD:DEC $\to$ 冷色低亮
+    \item 掌心 $\to$ CMD:STOP $\to$ 全灭
+    \item 剪刀手 $\to$ CMD:REV $\to$ 彩虹特效
+\end{itemize}
+
+\section{硬件采购清单}
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{名称} & \textbf{规格} & \textbf{总价} \\
+\midrule
+AI主板 & OrangePi AIpro (昇腾310B) & ¥680 \\
+MCU & STM32F103C8T6 核心板 & ¥25 \\
+摄像头 & USB 720P (支持MJPG) & ¥80 \\
+灯带 & WS2812B (5V, 30颗/米) & ¥18 \\
+主板电源 & 12V 3A适配器 & ¥35 \\
+灯带电源 & 5V 3A独立适配器 & ¥25 \\
+串口模块 & CH340 USB转TTL & ¥12 \\
+电容 & 1000µF/16V & ¥2 \\
+\bottomrule
+\end{tabular}
+\caption*{总成本约 ¥927（灯带必须独立供电）}
+\end{table}
+
+\section{分工与风险预案}
+\subsection*{两人分工}
+\begin{itemize}
+    \item \textbf{成员A（算法与上位机）}：模型转换、NPU推理脚本、串口发送逻辑、Flask推流。
+    \item \textbf{成员B（嵌入式与硬件）}：STM32驱动（SPI+DMA）、UART中断、硬件接线、灯带调试。
+\end{itemize}
+
+\subsection*{降级方案}
+\begin{itemize}
+    \item WebRTC推流 $\to$ Flask+MJPEG
+    \item FreeRTOS $\to$ 裸机中断+轮询
+    \item 模型转换报错 $\to$ 参考华为官方YOLO样例
+\end{itemize}
+
+\section*{附录：准备状态自查}
+\begin{itemize}
+    \item [ ] 硬件已下单，预计7月1日前到货
+    \item [ ] CANN 7.0 环境已安装
+    \item [ ] VS Code + ARM-GCC 已测试
+\end{itemize}
+
+\end{document}
