@@ -84,16 +84,38 @@
 | 电解电容 | 1000µF/16V | 2 | 并联于灯带VCC/GND |
 
 **接线拓扑**：
-OrangePi AIpro STM32F103C8T6   
-UART_TX (Pin8) -----> RX (PA10)
-UART_RX (Pin10) <----- TX (PA9)
-GND -----> GND
-|
-| PA7 (SPI1_MOSI) ----> WS2812B DIN
-| WS2812B VCC <-- 5V电源
-| WS2812B GND <-- GND（共地）
-| (并联1000µF电容)
-**关键**：所有GND共地；PA7至DIN串联300~500Ω电阻；灯带严禁从主板取电。
+```mermaid
+graph LR
+    %% 节点定义
+    OAI[OrangePi AIpro<br>昇腾310B]
+    STM32[STM32F103C8T6<br>辅助MCU]
+    LED[WS2812B灯带<br>1米30珠]
+    PSU[5V独立电源]
+
+    %% 串口通信 (交叉连线)
+    OAI -- "TX (Pin8)" --> STM32
+    OAI -- "RX (Pin10)" --> STM32
+
+    %% 控制信号 (SPI 驱动灯带)
+    STM32 -- "PA7 (SPI1 MOSI)" --> LED
+
+    %% 独立供电 (严禁主板取电)
+    PSU -- "VCC 红线 (+5V)" --> LED
+    PSU -- "GND 白线" --> LED
+
+    %% 强制共地要求 (跨板通信基础)
+    PSU -. "GND (必须共地)" .-> STM32
+    OAI -. "GND (必须共地)" .-> STM32
+
+    %% 硬件保护电路
+    STM32 -. "PA7 串联 300~500Ω电阻" .-> LED
+    PSU -. "并联 1000µF 电解电容" .-> LED
+
+    %% 样式美化
+    style PSU fill:#ffdddd,stroke:#ff0000,stroke-width:2px
+    style LED fill:#d4f1f9,stroke:#0044cc
+    style OAI fill:#e1f5fe
+    style STM32 fill:#e1f5fe
 
 ## 软件架构
 
