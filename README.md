@@ -5,14 +5,14 @@
 
 ## 项目简介
 
-利用OrangePi AIpro（昇腾310B）运行YOLOv10手势识别，通过NPU加速推理，识别四种手势（点赞、握拳、掌心、剪刀手）。结果经UART串口发送至STM32F103C8T6，驱动WS2812B全彩灯带实现颜色/特效切换。同时提供Flask+MJPEG轻量化视频推流，支持浏览器实时预览。
+利用OrangePi AIpro（昇腾310B）运行YOLOv10手势识别，通过NPU加速推理，识别四种手势（点赞、握拳、掌心、剪刀手）。结果经UART串口发送至STM32F103C8T6，驱动WS2812B彩灯带实现颜色及动态特效的切换。
 
 ---
 
 ## 📋 项目计划书
 
 ### 项目概述
-本项目利用OrangePi AIpro（昇腾310B）运行YOLOv10手势识别模型，识别结果通过串口发送至STM32，驱动WS2812B彩灯带实现颜色及动态特效的切换。项目由两人合作完成。
+本项目利用OrangePi AIpro（昇腾310B）运行YOLOv10手势识别模型，识别结果通过串口发送至STM32，驱动WS2812B彩灯带实现颜色及动态特效的切换。项目由两人合作完成，分别负责AI推理与嵌入式开发。
 
 ### 时间节点与任务
 
@@ -84,6 +84,7 @@
 | 电解电容 | 1000µF/16V | 2 | 并联于灯带VCC/GND |
 
 **接线拓扑**：
+
 ```mermaid
 graph LR
     %% 节点定义
@@ -116,6 +117,14 @@ graph LR
     style LED fill:#d4f1f9,stroke:#0044cc
     style OAI fill:#e1f5fe
     style STM32 fill:#e1f5fe
+```
+
+**关键说明**：
+- OrangePi AIpro UART_TX (Pin8) → STM32 RX (PA10)
+- OrangePi AIpro UART_RX (Pin10) ← STM32 TX (PA9)
+- STM32 PA7 (SPI1 MOSI) → WS2812B DIN（串联300~500Ω电阻）
+- WS2812B VCC ← 5V独立电源；GND 共地
+- 所有GND必须共地；灯带严禁从主板取电
 
 ## 软件架构
 
