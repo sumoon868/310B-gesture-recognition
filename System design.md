@@ -85,7 +85,7 @@
 **架构**:
 
 ```mermaid
-flowchart LR
+graph LR
     A[USB摄像头] --> B[昇腾310B NPU推理]
     B --> C[串口 UART]
     C --> D[STM32F103C8T6]
@@ -93,6 +93,16 @@ flowchart LR
     E --> F[WS2812B灯带]
     B --> G[Flask MJPEG推流]
     G --> H[浏览器实时预览]
+```
+### 3. 数据流向：
+
+USB摄像头采集视频帧 → 送入昇腾310B
+NPU执行YOLOv10 OM模型推理 → 识别手势类别
+检测框叠加到原始画面 → MJPEG推流至浏览器
+手势类别通过UART串口发送至STM32
+STM32解析指令 → SPI+DMA驱动WS2812B灯带 → 显示对应颜色/特效
+
+```mermaid
 flowchart TD
     subgraph OrangePi["OrangePi AIpro (昇腾310B)"]
         TX[UART_TX Pin8]
@@ -124,6 +134,15 @@ flowchart TD
 
     CAP[1000µF/16V电容] -- 并联 --> VCC
     CAP -- 并联 --> GND3
+```
+### 4. 关键设计要点：
+
+所有GND必须共地
+灯带必须使用独立5V电源供电，严禁从主板取电
+灯带VCC与GND之间并联1000µF/16V电解电容
+PA7至DIN之间串联300~500Ω电阻
+
+```mermaid
 flowchart TD
     subgraph 昇腾端["昇腾端 (Python)"]
         A[Camera采集] --> B[预处理 Letterbox]
@@ -141,6 +160,46 @@ flowchart TD
     end
 
     F -->|UART| H
+```
+
+### 5.1 YOLOv10后处理
+
+- 输入张量：`[1, 84, 8400]`（84 = 80类别 + 4坐标，8400 = 三个检测头）
+- NMS-free架构，直接解析分类得分和bbox
+- 坐标映射回原始分辨率：
+
+```text
+x_orig = (x_640 - dw) / ratio
+y_orig = (y_640 - dh) / ratio
+```
+### 5.2 WS2812B SPI+DMA编码
+
+- SPI时钟约1.125MHz，每3个SPI字节映射1个数据位
+
+- 逻辑1 → \( \text{0b11110000} \times 3 \)（高电平~2.13μs）
+
+- 逻辑0 → \( \text{0b10000000} \times 3 \)（高电平~0.89μs）
+
+- 每灯珠24位GRB数据 → 72字节，DMA一次性发送
+
+
+### 6. 通信协议
+
+**格式：**  
+`CMD:<ACTION>\r\n`
+
+| 指令 | 动作 |
+| --- | --- |
+| `CMD:ACC\r\n` | 暖色高亮 |
+| `CMD:DEC\r\n` | 冷色低亮 |
+| `CMD:STOP\r\n` | 全灭 |
+| `CMD:REV\r\n` | 彩虹特效 |
+
+**防粘包：**  
+STM32中断接收，检测到 `\n` 作为帧结束标志。
+
+### 7.任务调度
+``` mermaid
 flowchart LR
     subgraph 昇腾主循环["昇腾主循环 (单线程)"]
         S1[采集] --> S2[推理] --> S3[后处理] --> S4[画框推流] --> S5[串口发送]
@@ -154,6 +213,28 @@ flowchart LR
     end
 
     S5 -->|串口指令| T1
+```
+
+## 🚀 部署步骤（双人协作版）
+
+### 阳皓（昇腾端）
+1. 安装依赖：`pip install -r requirements.txt`
+2. 将YOLOv10导出ONNX，使用ATC转为OM（适配Ascend310B）
+3. 修改`ascend/config.py`中的`SERIAL_PORT`（如`/dev/ttyS0`）
+4. 运行主程序：`python ascend/infer.py`
+5. （可选）运行推流：`python web/flask_stream.py`
+
+### 江宇晨（STM32端）
+1. 使用STM32CubeMX生成Makefile工程（USART1中断，SPI1+DMA）
+2. 将`stm32/Inc/`和`stm32/Src/`文件加入工程
+3. 在`main.c`中调用`UART_Init_IT()`和`WS2812_Turn_Off()`
+4. 编译：`make`，烧录（ST-Link或串口ISP）
+5. 串口助手发送`CMD:ACC\r\n`测试灯带
+
+---
+
+## 📁 项目文件结构
+```mermaid
 flowchart LR
     root[GestureControl_LED] --> README[README.md]
     root --> LICENSE[LICENSE]
@@ -179,28 +260,15 @@ flowchart LR
     Src --> uart_c[uart_handler.c]
 
     web --> flask[flask_stream.py]
----
+```
 
-## 🚀 部署步骤（双人协作版）
+### 8. 降级保底方案
 
-### 成员A（昇腾端）
-1. 安装依赖：`pip install -r requirements.txt`
-2. 将YOLOv10导出ONNX，使用ATC转为OM（适配Ascend310B）
-3. 修改`ascend/config.py`中的`SERIAL_PORT`（如`/dev/ttyS0`）
-4. 运行主程序：`python ascend/infer.py`
-5. （可选）运行推流：`python web/flask_stream.py`
-
-### 成员B（STM32端）
-1. 使用STM32CubeMX生成Makefile工程（USART1中断，SPI1+DMA）
-2. 将`stm32/Inc/`和`stm32/Src/`文件加入工程
-3. 在`main.c`中调用`UART_Init_IT()`和`WS2812_Turn_Off()`
-4. 编译：`make`，烧录（ST-Link或串口ISP）
-5. 串口助手发送`CMD:ACC\r\n`测试灯带
-
----
-
-## 📁 项目文件结构
----
+| 风险 | 原方案 | 降级方案 |
+| --- | --- | --- |
+| WebRTC推流 | aiotc+信令 | Flask+MJPEG |
+| STM32调度 | FreeRTOS | 裸机中断+轮询 |
+| 模型转换 | ATC转换 | 参考华为官方样例 |
 
 ## ❓ 常见问题
 
@@ -219,4 +287,4 @@ flowchart LR
 
 ---
 
-**文档版本**：v1.0 | **最后更新**：2026-07-01 | **维护者**：成员A & 成员B
+**文档版本**：v1.0 | **最后更新**：2026-07-01 | **维护者**：阳皓 & 江宇晨
